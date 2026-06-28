@@ -1,0 +1,15 @@
+{
+  "compilerOptions": {
+    "target": "ES2022",
+    "module": "ESNext",
+    "moduleResolution": "Bundler",
+    "lib": ["ES2023"],
+    "types": ["node"],
+    "strict": true,
+    "esModuleInterop": true,
+    "skipLibCheck": true,
+    "noEmit": true
+  },
+  "include": ["labs/_shared", "labs/m1-llm-foundations", "labs/m2-tool-use", "labs/m4-vector-search-rag", "labs/m5-mcp-tools", "labs/m9-agent-to-agent"],
+  "exclude": ["node_modules", "labs/m3-knowledge-bases"]
+}
