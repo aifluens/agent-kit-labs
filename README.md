@@ -1,158 +1,95 @@
 # agent-kit-labs
 
-Run the **AIFluensLab** learning labs on **your own machine**, with **your own
-provider key** — no account, no telemetry, fully offline except the LLM API calls
-you make.
+## What is this?
 
-This repo installs the public [`@aifluens/agent-kit`](https://www.npmjs.com/package/@aifluens/agent-kit)
-package and runs the **real lab code**. The files under `labs/` are **identical**
-to what the platform shows you, with one change: the model line reads
-`model: MODEL` (env-driven) instead of the platform-authored `"claude-sonnet"`,
-so you can pick any provider without editing lab code. That is the *same* BYOK
-swap the platform applies — **what you see is what runs**.
+This is runnable code for an **AI customer-support agent** — a help-desk / billing
+assistant that greets a customer, looks up their account and orders, and can issue
+a refund. You run it on your own machine with your own API key.
 
-> **Get this repo:** click **“Use this template”** on GitHub (or clone it). Then
-> follow Setup below.
+It exists for **learning**. Working through the labs in order gives you an
+end-to-end picture of how a real AI agent is built — from a single prompt, to
+tools, to searching your own documents, to talking to external services — and what
+the production version of each piece looks like.
+
+The same code runs on the hosted **AIFluensLab** platform. This repo is just that
+code, packaged so you can run it locally with your own provider key — no account
+and no telemetry. It installs the public
+[`@aifluens/agent-kit`](https://www.npmjs.com/package/@aifluens/agent-kit) package
+and runs the real lab files.
+
+> **Get the repo:** `git clone https://github.com/aifluens/agent-kit-labs.git`,
+> then follow Setup below.
 
 ---
-
-## Prerequisites
-
-| Tool | Needed for | Notes |
-| --- | --- | --- |
-| **Node.js ≥ 20.11** | everything | the package requires it (`engines.node`) |
-| **npm** | install | ships with Node |
-| **An OpenAI _or_ Anthropic API key** | M1, M2, M9, M4 (live runs) | set `OPENAI_API_KEY` and/or `ANTHROPIC_API_KEY` — see [Choosing a provider](#choosing-a-provider) |
-| **Docker** | M4 only | runs Postgres + pgvector |
-
-No global installs are needed — `tsx` (the TypeScript runner) comes in as a dev
-dependency and is invoked through the npm scripts.
 
 ## Project layout
 
 ```
 agent-kit-labs/
-├─ package.json          # installs the published package + peers; defines run scripts
-├─ tsconfig.json         # editor convenience (tsx runs without it)
-├─ .env.example          # copy to .env and fill in your key
-├─ labs/                 # the real lab code, verbatim (only the model line differs)
-│  ├─ _shared/model.ts                  # one provider/model switch for every lab
+├─ package.json          # installs the package + defines the run scripts
+├─ .env.example          # copy to .env and add your key
+├─ labs/                 # the lab code you run
+│  ├─ _shared/model.ts                  # one place that picks the model for every lab
 │  ├─ m1-llm-foundations/agent.ts
 │  ├─ m2-tool-use/agent.ts
-│  ├─ m3-knowledge-bases/ingest.ts      # display-only, not run (see below)
+│  ├─ m3-knowledge-bases/ingest.ts      # read-only example (see below)
 │  ├─ m4-vector-search-rag/retriever.ts
 │  ├─ m5-mcp-tools/agent-mcp.ts
 │  ├─ m5-mcp-tools/agent-http.ts
 │  └─ m9-agent-to-agent/agent.ts
-├─ docs/                 # sample knowledge-base docs ingested in M4
-└─ servers/helpdesk.mjs  # local MCP (:8000) + HTTP (:8001) servers for M5 (no deps)
+├─ docs/                 # sample documents the RAG lab searches
+└─ servers/helpdesk.mjs  # a small local Help Desk server for the connections lab
 ```
 
 ---
 
 ## Setup
 
+Do steps 1–3 once. Step 4 (the database) is only needed before the **Vector search
+/ RAG** lab — the earlier labs need nothing but an API key.
+
+### 1. Prerequisites
+
+| Tool | Needed for |
+| --- | --- |
+| **Node.js ≥ 20.12** and **npm** | everything |
+| **An OpenAI _or_ Anthropic API key** | running any lab |
+| **Docker** | the Vector search / RAG lab only |
+
+Nothing is installed globally — the TypeScript runner (`tsx`) comes in with
+`npm install` and is used through the `npm run …` scripts.
+
+### 2. Install
+
 ```bash
-npm install                 # pulls @aifluens/agent-kit + peers from the registry
-cp .env.example .env        # then edit .env and paste your API key
+npm install
 ```
 
-Load the env vars into your shell **before running any lab** (re-run this in each
-new terminal):
+### 3. Add your API key
 
 ```bash
-set -a; . ./.env; set +a
+cp .env.example .env
 ```
 
-### Environment variables (`.env`)
+Open `.env` and paste your key. By default it's set up for OpenAI
+(`LLM_PROVIDER=openai`, `LAB_MODEL=gpt-4o-mini`), so just fill in `OPENAI_API_KEY`.
+To use Anthropic instead, see [Choosing a provider](#choosing-a-provider).
 
-| Variable | Used by | Default in `.env.example` |
-| --- | --- | --- |
-| `OPENAI_API_KEY` | live LLM runs on OpenAI | _(empty — you fill it in)_ |
-| `ANTHROPIC_API_KEY` | live LLM runs on Anthropic | _(empty — you fill it in)_ |
-| `LAB_MODEL` | which model/provider the labs use | `openai:gpt-4o-mini` |
-| `DATABASE_URL` | M4 | `postgres://postgres:pw@localhost:5432/postgres` |
-| `AGENT_KIT_KB_ID` | M4 | `1` |
-| `AGENT_KIT_CONNECTIONS` | M5 | points at the local Help Desk servers |
+The `npm run …` lab scripts load `.env` automatically, so once your key is in
+there you can run any lab.
 
-> **Fastest first run:** M1, M2, M9 need only a provider key — no Docker, no
-> servers. Set the key and run `npm run m1` to confirm everything works.
+> **Try it now:** the first labs need only your key — run `npm run m1` to confirm
+> everything works.
 
-### Choosing a provider
+### 4. Database setup (for the Vector search / RAG lab)
 
-The agent-kit picks the provider from the **prefix** of the model string and
-reads that provider's own standard env var. You switch providers in one of two
-ways — no lab code needs editing:
+The RAG lab answers questions using **your own documents**. To do that it stores
+each document — split into chunks plus a numeric "embedding" of each chunk — in a
+**Postgres** database with the **pgvector** extension, then searches that database
+for the chunks most relevant to a question. So you need a Postgres + pgvector
+database running before that lab. The steps below start a throwaway one in Docker.
 
-| Provider | Set in `.env` | Key |
-| --- | --- | --- |
-| **OpenAI** (default) | `LAB_MODEL=openai:gpt-4o-mini` | `OPENAI_API_KEY` |
-| **Anthropic** | `LAB_MODEL=claude-sonnet` | `ANTHROPIC_API_KEY` |
-
-- **Via the environment file** — set `LAB_MODEL` (and the matching key) in `.env`,
-  reload (`set -a; . ./.env; set +a`), and run any lab.
-- **Via code** — change the default literal in **`labs/_shared/model.ts`**, which
-  every lab imports:
-  ```ts
-  export const MODEL = process.env.LAB_MODEL ?? "openai:gpt-4o-mini";
-  //                                            ^ change this default to e.g. "claude-sonnet"
-  ```
-
-Friendly Anthropic shortnames resolve automatically (`claude-sonnet` →
-`claude-sonnet-4-6`, `claude-opus` → `claude-opus-4-8`). Any provider the package
-supports works the same way by prefix (`google:`, `bedrock:`, …) as long as you
-set that provider's env var (and install its `@langchain/*` peer).
-
----
-
-## Running the labs
-
-### M1 · LLM foundations  _(key only)_
-```bash
-npm run m1
-```
-A plain agent on your chosen provider. Expect a brief, friendly billing-support
-greeting.
-
-### M2 · Tool use  _(key only)_
-```bash
-npm run m2
-```
-The agent calls the `lookup_account` tool. Expect it to report **alice@acme.com is
-on the Pro plan at $49**.
-
-### M9 · Agent-to-agent delegation  _(key only)_
-```bash
-npm run m9
-```
-A router agent delegates to a `billing` specialist (which itself calls a tool).
-Expect a billing-focused answer about the double charge.
-
-### M5 · MCP + HTTP connections  _(key + local server, two terminals)_
-The labs talk to a Help Desk server **you supply** — included here as
-`servers/helpdesk.mjs` (no dependencies). `AGENT_KIT_CONNECTIONS` in `.env`
-already points at it.
-
-Terminal A — start the servers (MCP on :8000, HTTP on :8001):
-```bash
-npm run servers
-```
-Terminal B — run the labs (load env first):
-```bash
-set -a; . ./.env; set +a
-npm run m5:mcp     # tools discovered via MCPClient.connect("helpdesk-sandbox")
-npm run m5:http    # same tools hand-wired via callConnectionHttp("helpdesk-http")
-```
-Both should look up **ORD-1001**, issue a full refund, and confirm the new
-balance of **$0**.
-
-### M4 · Vector search / RAG  _(key + Docker)_
-
-M4 searches **your own** Postgres database with the
-[`pgvector`](https://github.com/pgvector/pgvector) extension. The steps below
-spin one up in a throwaway Docker container — no local Postgres install needed.
-
-#### Step 1 — Start a Postgres + pgvector container
+Start the database:
 
 ```bash
 docker run -d \
@@ -162,33 +99,118 @@ docker run -d \
   pgvector/pgvector:pg16
 ```
 
-The matching connection string is already in `.env.example`:
-`postgres://postgres:pw@localhost:5432/postgres`. If you change the password or
-port above, update `DATABASE_URL` to match.
-
-Confirm it's up (give it a couple of seconds to boot):
+This matches the `DATABASE_URL` already in `.env.example`
+(`postgres://postgres:pw@localhost:5432/postgres`). If you change the password or
+port, update `DATABASE_URL` to match. Confirm it's up (give it a few seconds):
 
 ```bash
-docker exec pgvector pg_isready -U postgres # → "accepting connections"
+docker exec pgvector pg_isready -U postgres   # → "accepting connections"
 ```
 
-#### Step 2 — Apply the schema that ships inside the package
+Create the tables (the schema ships inside the package):
 
 ```bash
 docker exec -i pgvector psql -U postgres -d postgres \
   < node_modules/@aifluens/agent-kit/schema.sql
 ```
 
-#### Step 3 — Ingest the sample docs
-
-First run downloads the ~30 MB Xenova embedding model (cached afterward):
+Manage the container later:
 
 ```bash
-set -a; . ./.env; set +a
+docker stop pgvector     # stop (keeps your data)
+docker start pgvector    # start it again
+docker rm -f pgvector    # remove it entirely (deletes its data)
+```
+
+---
+
+## Choosing a provider
+
+Two settings control which model the labs use:
+
+- **`LLM_PROVIDER`** — which provider to call: `anthropic`, `openai`, `google`,
+  `bedrock`, `azure-openai`, or `vertex`. Set this explicitly.
+- **`LAB_MODEL`** — which model id to use.
+
+Set both in `.env`, plus that provider's key. No lab code changes:
+
+| Provider | Set in `.env` | Key |
+| --- | --- | --- |
+| **OpenAI** (default) | `LLM_PROVIDER=openai` + `LAB_MODEL=gpt-4o-mini` | `OPENAI_API_KEY` |
+| **Anthropic** | `LLM_PROVIDER=anthropic` + `LAB_MODEL=claude-sonnet` | `ANTHROPIC_API_KEY` |
+
+The other providers (`google`, `bedrock`, …) work the same way — set
+`LLM_PROVIDER`, the model, and the provider's standard key, then install its
+`@langchain/*` package. See the
+[`@aifluens/agent-kit` README](https://www.npmjs.com/package/@aifluens/agent-kit)
+for the full list.
+
+---
+
+## Running the labs
+
+The labs build on each other, so run them in order.
+
+### LLM foundations — `labs/m1-llm-foundations/agent.ts`  _(key only)_
+
+```bash
+npm run m1
+```
+
+A plain agent on your chosen provider. Expect a brief, friendly billing-support
+greeting.
+
+### Tool use — `labs/m2-tool-use/agent.ts`  _(key only)_
+
+```bash
+npm run m2
+```
+
+The agent calls a `lookup_account` tool. Expect it to report **alice@acme.com is
+on the Pro plan at $49**.
+
+### Knowledge bases — `labs/m3-knowledge-bases/ingest.ts`  _(read + run)_
+
+**Run it:** ingesting documents is done with `npm run ingest` (covered in full in
+the next lab — it needs the [database](#4-database-setup-for-the-vector-search--rag-lab)):
+
+```bash
+npm run ingest   # chunks ./docs/*.md, embeds each chunk, stores them in pgvector (kb 1)
+```
+
+That command runs the real, packaged ingestion pipeline.
+
+**Read it:** `labs/m3-knowledge-bases/ingest.ts` is an annotated, read-only view of
+the *same* pipeline, so you can see the four steps — extract → chunk → embed →
+store — laid out in code. It imports internal platform modules that aren't part of
+`@aifluens/agent-kit`, so it isn't meant to be executed on its own (there's no
+`npm run m3`); `npm run ingest` above is the runnable equivalent.
+
+### Vector search / RAG — `labs/m4-vector-search-rag/retriever.ts`  _(key + database)_
+
+First complete [Database setup](#4-database-setup-for-the-vector-search--rag-lab).
+Then load documents into the database and run the lab.
+
+**Ingest documents.** This chunks each file, computes embeddings, and stores them
+in the database. The first run downloads a ~30 MB embedding model (cached after
+that).
+
+Load the sample docs that ship in this repo — `docs/billing.md`,
+`docs/refunds.md`, and `docs/shipping.md` — into knowledge base 1:
+
+```bash
 npm run ingest          # = agent-kit-ingest ./docs/*.md --kb 1
 ```
 
-#### Step 4 — Run the retrieval lab
+To load **your own** documents instead, point the bin at your files (the
+`npm run ingest` script loads `.env` for you; run the bin directly and you'll
+need to export it yourself):
+
+```bash
+agent-kit-ingest ./path/to/your-docs/*.md --kb 1
+```
+
+**Run the lab:**
 
 ```bash
 npm run m4
@@ -198,23 +220,61 @@ Expect an answer to "How long do refunds take?" grounded in `docs/refunds.md`
 (5–7 business days) with `[1]`/`[2]` citations, plus a `searchType=vector, topK=3`
 line.
 
-#### Managing the container
+### MCP & HTTP connections — `labs/m5-mcp-tools/agent-mcp.ts`, `agent-http.ts`  _(key + local server)_
+
+This lab gives the agent tools that live on a separate server, using two
+approaches: **MCP** (the Model Context Protocol, a standard way for agents to
+discover and call a server's tools) and a plain **HTTP** API.
+
+The **MCP client** that connects to such a server is part of the
+`@aifluens/agent-kit` package. You bring the **server**. For this exercise the repo
+includes a small local Help Desk server (`servers/helpdesk.mjs`, no dependencies)
+that runs on your machine, and `AGENT_KIT_CONNECTIONS` in `.env.example` already
+points the labs at it.
+
+Run it in two terminals.
+
+Terminal A — start the local server (MCP on :8000, HTTP on :8001):
 
 ```bash
-docker stop pgvector     # stop (keeps data)
-docker start pgvector    # start it again later
-docker rm -f pgvector    # remove the container entirely (deletes its data)
+npm run servers
 ```
 
-### M3 · Knowledge bases  _(display-only — not run)_
-`labs/m3-knowledge-bases/ingest.ts` is the platform's internal ingestion pipeline,
-shown read-only on the platform. It imports internal modules (`./chunking`,
-`./db`) that are **not** part of `@aifluens/agent-kit`, so it does not run
-standalone — the real local equivalent is the `agent-kit-ingest` CLI used in M4.
-It's included verbatim only so this project mirrors every module.
+Terminal B — run the labs:
 
-> **M6 (observability), M7 (evals), and M8 (guardrails)** are platform-only or
-> display-only and are not bundled here.
+```bash
+npm run m5:mcp     # tools discovered over MCP, via MCPClient.connect("helpdesk-sandbox")
+npm run m5:http    # the same tools called over plain HTTP, via callConnectionHttp("helpdesk-http")
+```
+
+Both should look up **ORD-1001**, issue a full refund, and confirm the new balance
+of **$0**.
+
+#### Bring your own MCP server
+
+To use a different server, edit `AGENT_KIT_CONNECTIONS` in `.env` and skip
+`npm run servers`. It's a JSON map of name → `{ kind, url, token? }`, where `kind`
+is `"mcp"` (any server speaking MCP over Streamable HTTP) or `"http"` (any HTTP
+API):
+
+```json
+{
+  "helpdesk-sandbox": { "kind": "mcp",  "url": "https://your-mcp-server/mcp", "token": "…" },
+  "helpdesk-http":    { "kind": "http", "url": "https://your-api",            "token": "…" }
+}
+```
+
+### Agent-to-agent delegation — `labs/m9-agent-to-agent/agent.ts`  _(key only)_
+
+```bash
+npm run m9
+```
+
+A router agent hands the request to a `billing` specialist (which itself calls a
+tool). Expect a billing-focused answer about the double charge.
+
+> Observability, evals, and guardrails are covered on the hosted platform and
+> aren't bundled in this repo.
 
 ---
 
@@ -222,16 +282,18 @@ It's included verbatim only so this project mirrors every module.
 
 | Symptom | Fix |
 | --- | --- |
-| `401 Incorrect API key` / `invalid x-api-key` | The key for the provider in `LAB_MODEL` is missing/invalid — set `OPENAI_API_KEY` (openai models) or `ANTHROPIC_API_KEY` (claude models) in `.env`, then re-run `set -a; . ./.env; set +a`. |
-| `agent-kit: set AGENT_KIT_CONNECTIONS …` (M5) | Env not loaded in this terminal — run the `set -a; . ./.env; set +a` line first. |
-| `ECONNREFUSED localhost:8000/8001` (M5) | The Help Desk server isn't running — start `npm run servers` in another terminal. |
-| `ECONNREFUSED localhost:5432` (M4) | The pgvector container isn't up — re-run the `docker run …` command (or `docker start pgvector`). |
-| `relation "labs_kb_chunks" does not exist` (M4) | Schema not applied — run the `docker exec … psql … < node_modules/@aifluens/agent-kit/schema.sql` step. |
-| M4 first run is slow | The Xenova embedding model (~30 MB) downloads once and is cached; later runs are fast. |
-| Port 8000/8001/5432 already in use | Stop the process using it, or change the port in `servers/helpdesk.mjs` / `.env` accordingly. |
+| `agent-kit: set LLM_PROVIDER to one of: …` | `LLM_PROVIDER` isn't set (or isn't valid). Set it in `.env` to `anthropic`, `openai`, `google`, `bedrock`, `azure-openai`, or `vertex`, and run via the `npm run …` scripts. |
+| `agent-kit: set OPENAI_API_KEY …` / `set ANTHROPIC_API_KEY …` | Your key isn't in `.env`, or you ran a file directly instead of via `npm run …`. Put the key in `.env` and use the scripts — they load `.env` for you. |
+| `401 Incorrect API key` / `invalid x-api-key` | The key for your `LLM_PROVIDER` is wrong — fix `OPENAI_API_KEY` or `ANTHROPIC_API_KEY` in `.env` and re-run. |
+| `agent-kit: set AGENT_KIT_CONNECTIONS …` | Set `AGENT_KIT_CONNECTIONS` in `.env` (it's pre-filled in `.env.example`) and run via `npm run m5:mcp` / `m5:http`. |
+| `ECONNREFUSED localhost:8000/8001` | The local Help Desk server isn't running — start `npm run servers` in another terminal. |
+| `ECONNREFUSED localhost:5432` | The pgvector container isn't up — re-run `docker run …` (or `docker start pgvector`). |
+| `relation "labs_kb_chunks" does not exist` | The schema wasn't applied — run the `docker exec … psql … < node_modules/@aifluens/agent-kit/schema.sql` step. |
+| The RAG lab's first run is slow | The ~30 MB embedding model downloads once and is cached; later runs are fast. |
+| Port 8000 / 8001 / 5432 already in use | Stop whatever is using it, or change the port in `servers/helpdesk.mjs` / `.env`. |
 
 ---
 
 > The `labs/` files are generated from the platform's canonical lab sources and
-> kept verbatim by a CI drift check, so this repo always matches what the course
-> shows. Do not hand-edit `labs/` in the upstream repo — change the lesson source.
+> kept in sync by a CI check, so this repo always matches what the course shows.
+> Don't hand-edit `labs/` — change the lesson source.
